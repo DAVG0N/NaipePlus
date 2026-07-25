@@ -110,15 +110,16 @@ export default function LoginPage() {
           type="button"
           onClick={async () => {
             try {
+              document.cookie = 'naipe_session=true; path=/; max-age=2592000';
               const supabase = createClient();
               await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                  redirectTo: `${window.location.origin}/browse`,
+                  redirectTo: `${window.location.origin}/`,
                 },
               });
             } catch {
-              router.push('/browse');
+              router.push('/');
             }
           }}
           className="w-full flex items-center justify-center space-x-3 rounded bg-white py-3 text-sm font-bold text-gray-900 transition hover:bg-gray-200"

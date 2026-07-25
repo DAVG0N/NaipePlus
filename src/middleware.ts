@@ -48,19 +48,18 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const authCookie = request.cookies.get('naipe_session');
+  const hasSession = !!user || !!authCookie;
 
   // If user is NOT logged in and trying to access ANY protected route -> Redirect to /login
-  if (!user && !isPublicRoute) {
+  if (!hasSession && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
   // If user IS logged in and trying to access /login or /signup -> Redirect to / (Home)
-  if (user && isPublicRoute) {
+  if (hasSession && isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
