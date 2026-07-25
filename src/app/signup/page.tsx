@@ -33,15 +33,18 @@ export default function SignupPage() {
 
       if (authError) {
         if (authError.message.includes('fetch failed') || authError.message.includes('Invalid URL')) {
-          router.push('/browse');
+          document.cookie = 'naipe_session=true; path=/; max-age=2592000';
+          router.push('/');
           return;
         }
         setError(authError.message);
       } else {
-        router.push('/browse');
+        document.cookie = 'naipe_session=true; path=/; max-age=2592000';
+        router.push('/');
       }
     } catch {
-      router.push('/browse');
+      document.cookie = 'naipe_session=true; path=/; max-age=2592000';
+      router.push('/');
     } finally {
       setLoading(false);
     }

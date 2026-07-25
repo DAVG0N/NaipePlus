@@ -11,7 +11,23 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  const publicRoutes = ['/login', '/signup'];
+  const pathname = request.nextUrl.pathname;
+  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+
+  // If Supabase is not configured or uses placeholder keys, fallback to session cookie check
   if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('your-supabase-project')) {
+    const authCookie = request.cookies.get('naipe_session');
+    if (!authCookie && !isPublicRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+    if (authCookie && isPublicRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
     return response;
   }
 
@@ -36,14 +52,17 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const protectedRoutes = ['/browse', '/watch', '/my-list'];
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
-  );
-
-  if (isProtectedRoute && !user) {
+  // If user is NOT logged in and trying to access ANY protected route -> Redirect to /login
+  if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  // If user IS logged in and trying to access /login or /signup -> Redirect to / (Home)
+  if (user && isPublicRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
     return NextResponse.redirect(url);
   }
 
@@ -55,3 +74,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
+

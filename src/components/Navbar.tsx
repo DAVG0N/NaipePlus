@@ -110,6 +110,10 @@ export default function Navbar() {
     { href: '/animes', label: 'Animes', isNew: true },
   ];
 
+  if (pathname === '/login' || pathname === '/signup') {
+    return null;
+  }
+
   return (
     <header
       className={`fixed top-0 z-50 w-full transition-all duration-300 ${
@@ -307,8 +311,14 @@ export default function Navbar() {
                   <User className="h-4 w-4 mr-2 text-netflix-red" /> O Meu Perfil
                 </Link>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setIsProfileOpen(false);
+                    try {
+                      const { createClient } = await import('@/lib/supabase/client');
+                      const supabase = createClient();
+                      await supabase.auth.signOut();
+                    } catch {}
+                    document.cookie = 'naipe_session=; path=/; max-age=0';
                     router.push('/login');
                   }}
                   className="w-full flex items-center px-4 py-2 text-sm text-red-500 hover:bg-netflix-card hover:text-red-400 text-left"

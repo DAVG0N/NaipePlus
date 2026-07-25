@@ -4,6 +4,7 @@ import AppProviders from './providers';
 import Navbar from '@/components/Navbar';
 import PreviewModal from '@/components/PreviewModal';
 import NotificationMonitor from '@/components/NotificationMonitor';
+import AuthListener from '@/components/AuthListener';
 
 export const metadata: Metadata = {
   title: 'NAIPE+ | Streaming de Filmes & Séries',
@@ -26,6 +27,7 @@ export default function RootLayout({
     <html lang="pt">
       <body className="bg-netflix-black text-white antialiased">
         <AppProviders>
+          <AuthListener />
           <NotificationMonitor />
           <Navbar />
           <main className="relative min-h-screen">{children}</main>
