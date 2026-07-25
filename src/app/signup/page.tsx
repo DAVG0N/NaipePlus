@@ -128,11 +128,12 @@ export default function SignupPage() {
           onClick={async () => {
             try {
               document.cookie = 'naipe_session=true; path=/; max-age=2592000';
+              const { createClient, getRedirectUrl } = await import('@/lib/supabase/client');
               const supabase = createClient();
               await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                  redirectTo: `${window.location.origin}/`,
+                  redirectTo: getRedirectUrl(),
                 },
               });
             } catch {
