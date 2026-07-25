@@ -3,6 +3,7 @@ import './globals.css';
 import AppProviders from './providers';
 import Navbar from '@/components/Navbar';
 import PreviewModal from '@/components/PreviewModal';
+import VideoPlayer from '@/components/VideoPlayer';
 import NotificationMonitor from '@/components/NotificationMonitor';
 import AuthListener from '@/components/AuthListener';
 
@@ -32,6 +33,7 @@ export default function RootLayout({
           <Navbar />
           <main className="relative min-h-screen">{children}</main>
           <PreviewModal />
+          <VideoPlayer />
         </AppProviders>
       </body>
     </html>

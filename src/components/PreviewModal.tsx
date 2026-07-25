@@ -35,6 +35,7 @@ export default function PreviewModal() {
     isPreviewOpen,
     selectedMedia,
     closePreview,
+    openPlayer,
     selectedProvider,
     setProvider,
     addToMyList,
@@ -104,9 +105,9 @@ export default function PreviewModal() {
   const handleStartWatch = () => {
     closePreview();
     if (selectedMedia.media_type === 'tv') {
-      router.push(`/watch/tv/${selectedMedia.id}?season=${selectedSeason}&episode=${selectedEpisode}`);
+      openPlayer(selectedMedia, selectedSeason, selectedEpisode);
     } else {
-      router.push(`/watch/movie/${selectedMedia.id}`);
+      openPlayer(selectedMedia);
     }
   };
 
@@ -256,8 +257,8 @@ export default function PreviewModal() {
                             key={epNum}
                             onClick={() => {
                               setSelectedEpisode(epNum);
-                              router.push(`/watch/tv/${selectedMedia.id}?season=${selectedSeason}&episode=${epNum}`);
                               closePreview();
+                              openPlayer(selectedMedia, selectedSeason, epNum);
                             }}
                             className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition border ${
                               selectedEpisode === epNum

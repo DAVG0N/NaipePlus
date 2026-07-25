@@ -1,121 +1,190 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Server, AlertCircle, RefreshCw } from 'lucide-react';
+import {
+  X,
+  Server,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react';
 import { PROVIDERS, StreamProvider } from '@/lib/providers';
 import { MediaItem } from '@/lib/tmdb';
 import { useAppStore } from '@/lib/store';
 
 interface VideoPlayerProps {
-  media: MediaItem;
+  media?: MediaItem;
   season?: number;
   episode?: number;
 }
 
-export default function VideoPlayer({ media, season = 1, episode = 1 }: VideoPlayerProps) {
+export default function VideoPlayer({ media, season, episode }: VideoPlayerProps) {
   const router = useRouter();
-  const { selectedProvider, setProvider } = useAppStore();
+  const {
+    isPlayerOpen,
+    playerMedia,
+    playerSeason,
+    playerEpisode,
+    closePlayer,
+    selectedProvider,
+    setProvider,
+  } = useAppStore();
+
   const [currentProvider, setCurrentProvider] = useState<StreamProvider>(selectedProvider || PROVIDERS[0]);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [key, setKey] = useState(0); // Used to reload iframe if needed
+  const [key, setKey] = useState(0); // Used to reload iframe
+
+  const activeMedia = media || playerMedia;
+  const activeSeason = season ?? playerSeason ?? 1;
+  const activeEpisode = episode ?? playerEpisode ?? 1;
+
+  const handleClose = () => {
+    if (isPlayerOpen) {
+      closePlayer();
+    } else {
+      router.back();
+    }
+  };
+
+  // Prevent background page scrolling while player modal is focused & handle Escape key
+  useEffect(() => {
+    const isShowing = !!activeMedia && (isPlayerOpen || !!media);
+    if (!isShowing) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeMedia, isPlayerOpen, media]);
+
+  if (!activeMedia || (!isPlayerOpen && !media)) return null;
 
   const embedUrl =
-    media.media_type === 'tv'
-      ? currentProvider.getTvUrl(media.id, season, episode)
-      : currentProvider.getMovieUrl(media.id);
+    activeMedia.media_type === 'tv'
+      ? currentProvider.getTvUrl(activeMedia.id, activeSeason, activeEpisode)
+      : currentProvider.getMovieUrl(activeMedia.id);
 
   const handleProviderChange = (provider: StreamProvider) => {
     setCurrentProvider(provider);
     setProvider(provider);
-    setIsMenuOpen(false);
     setKey((prev) => prev + 1);
   };
 
   return (
-    <div className="relative h-screen w-screen bg-black overflow-hidden select-none">
-      {/* Top Controls Overlay Header */}
-      <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/50 to-transparent p-4 sm:p-6 transition-opacity duration-300">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => router.back()}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-white/20 active:scale-95"
-            aria-label="Voltar"
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <div>
-            <h1 className="text-base sm:text-xl font-extrabold text-white truncate max-w-xs sm:max-w-md">
-              {media.title}
-            </h1>
-            {media.media_type === 'tv' && (
-              <p className="text-xs text-netflix-red font-semibold">
-                T{season} : Ep{episode}
-              </p>
-            )}
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6 overflow-y-auto overscroll-contain animate-fadeIn select-none"
+    >
+      {/* MODAL CARD CONTAINER */}
+      <div className="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-netflix-dark shadow-2xl border border-gray-800 my-auto px-5 sm:px-7 pt-3.5 sm:pt-4.5 pb-5 sm:pb-7 space-y-4">
+        {/* Modal Card Header (Title & Close Button) */}
+        <div className="flex items-center justify-between gap-4 py-0.5">
+          <div className="truncate">
+            <h2 className="text-xl sm:text-2xl font-black text-white truncate">
+              {activeMedia.title}
+            </h2>
           </div>
+
+          {/* Close Modal Button */}
+          <button
+            onClick={handleClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-gray-300 hover:text-white transition hover:bg-white/20 border border-gray-700 shrink-0"
+            title="Fechar Player"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        {/* Right Action Menu: Server Provider Selector & Reload */}
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setKey((prev) => prev + 1)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-gray-300 hover:text-white transition"
-            title="Recarregar Servidor"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
+        {/* Video Player Frame Container (16:9 Aspect Ratio) */}
+        <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+          {/* Video Embed Iframe */}
+          <iframe
+            key={key}
+            src={embedUrl}
+            className="h-full w-full border-0 relative z-10"
+            allowFullScreen
+            allow="autoplay; encrypted-media; picture-in-picture"
+            title={activeMedia.title}
+          />
+        </div>
 
-          {/* Server Switcher Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex items-center space-x-2 rounded bg-netflix-dark/80 px-3 py-1.5 text-xs font-semibold text-white border border-gray-700 hover:border-netflix-red transition"
-            >
-              <Server className="h-3.5 w-3.5 text-netflix-red" />
-              <span>{currentProvider.name}</span>
-            </button>
+        {/* SERVERS SELECTOR SECTION (INSIDE CARD) */}
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center space-x-2">
+              <Server className="h-4 w-4 text-netflix-red" />
+              <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">
+                Servidores de Reprodução
+              </h3>
+            </div>
 
-            {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md bg-netflix-dark border border-gray-800 shadow-2xl py-2 z-50 animate-fadeIn">
-                <div className="px-3 py-1.5 border-b border-gray-800 text-[10px] text-gray-400 uppercase font-bold">
-                  Alternar Servidor de Vídeo
-                </div>
-                {PROVIDERS.map((prov) => (
-                  <button
-                    key={prov.id}
-                    onClick={() => handleProviderChange(prov)}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition ${
-                      currentProvider.id === prov.id
-                        ? 'bg-netflix-red/20 text-white font-bold'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setKey((prev) => prev + 1)}
+                className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-black/60 text-gray-300 hover:text-white border border-gray-700 hover:border-netflix-red transition text-xs font-semibold"
+                title="Recarregar Servidor"
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-netflix-red" />
+                <span>Recarregar</span>
+              </button>
+              <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
+                {PROVIDERS.length} opções
+              </span>
+            </div>
+          </div>
+
+          {/* Server Selection Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {PROVIDERS.map((prov) => {
+              const isSelected = currentProvider.id === prov.id;
+              return (
+                <button
+                  key={prov.id}
+                  onClick={() => handleProviderChange(prov)}
+                  className={`group flex items-center space-x-2.5 px-3 py-2 rounded-xl border text-left transition-all duration-200 ${
+                    isSelected
+                      ? 'bg-netflix-red/15 border-netflix-red text-white shadow-md shadow-netflix-red/20 ring-1 ring-netflix-red'
+                      : 'bg-black/40 border-gray-800 text-gray-300 hover:bg-gray-800/80 hover:border-gray-600 hover:text-white'
+                  }`}
+                >
+                  <div
+                    className={`p-1.5 rounded-lg shrink-0 transition-colors ${
+                      isSelected ? 'bg-netflix-red text-white' : 'bg-gray-800 text-gray-400 group-hover:text-white'
                     }`}
                   >
-                    <span>{prov.name}</span>
-                    {prov.badge && (
-                      <span className="text-[9px] bg-netflix-red px-1.5 py-0.5 rounded text-white font-bold">
-                        {prov.badge}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+                    <Server className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-extrabold">{prov.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Helper Hint */}
+          <div className="flex items-center space-x-2.5 p-3 rounded-xl bg-black/40 border border-gray-800/80 text-gray-300 text-xs mt-2">
+            <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>
+              Para uma melhor experiência de reprodução, recomendamos utilizar o navegador <strong className="text-white font-bold">Brave Browser</strong> ou a extensão <strong className="text-white font-bold">uBlock Origin</strong>.
+            </span>
           </div>
         </div>
-      </div>
-
-      {/* Embed Video Iframe Wrapper */}
-      <div className="h-full w-full">
-        <iframe
-          key={key}
-          src={embedUrl}
-          className="h-full w-full border-0"
-          allowFullScreen
-          allow="autoplay; encrypted-media; picture-in-picture"
-          title={media.title}
-        />
       </div>
     </div>
   );
 }
+
+
+

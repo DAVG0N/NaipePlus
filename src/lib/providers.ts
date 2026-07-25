@@ -9,29 +9,25 @@ export interface StreamProvider {
 export const PROVIDERS: StreamProvider[] = [
   {
     id: 'vidsrc-primary',
-    name: 'Server 1 (VidSrc Pro)',
-    badge: 'Recomendado',
+    name: 'Servidor 1',
     getMovieUrl: (id) => `https://vidsrc.me/embed/movie/${id}`,
     getTvUrl: (id, s, e) => `https://vidsrc.me/embed/tv/${id}/${s}/${e}`,
   },
   {
     id: 'vidsrc-xyz',
-    name: 'Server 2 (VidSrc XYZ)',
-    badge: 'Rápido',
+    name: 'Servidor 2',
     getMovieUrl: (id) => `https://vidsrc.xyz/embed/movie/${id}`,
     getTvUrl: (id, s, e) => `https://vidsrc.xyz/embed/tv/${id}/${s}/${e}`,
   },
   {
     id: 'vidsrc-in',
-    name: 'Server 3 (VidSrc In)',
-    badge: 'HD',
+    name: 'Servidor 3',
     getMovieUrl: (id) => `https://vidsrc.in/embed/movie/${id}`,
     getTvUrl: (id, s, e) => `https://vidsrc.in/embed/tv/${id}/${s}/${e}`,
   },
   {
     id: 'embed-su',
-    name: 'Server 4 (Embed.su)',
-    badge: 'Fallback',
+    name: 'Servidor 4',
     getMovieUrl: (id) => `https://embed.su/embed/movie/${id}`,
     getTvUrl: (id, s, e) => `https://embed.su/embed/tv/${id}/${s}/${e}`,
   },

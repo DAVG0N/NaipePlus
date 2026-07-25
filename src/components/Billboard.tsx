@@ -13,11 +13,11 @@ interface BillboardProps {
 
 export default function Billboard({ media }: BillboardProps) {
   const router = useRouter();
-  const { openPreview, addToMyList, removeFromMyList, isInMyList } = useAppStore();
+  const { openPreview, openPlayer, addToMyList, removeFromMyList, isInMyList } = useAppStore();
   const inList = isInMyList(media.id);
 
   const handlePlay = () => {
-    router.push(`/watch/${media.media_type}/${media.id}`);
+    openPlayer(media);
   };
 
   return (

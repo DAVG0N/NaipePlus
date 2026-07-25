@@ -16,7 +16,7 @@ interface MovieCardProps {
 
 export default function MovieCard({ media, isFirst = false, isLast = false }: MovieCardProps) {
   const router = useRouter();
-  const { openPreview, addToMyList, removeFromMyList, isInMyList, toggleLike, isLiked, trailersEnabled, trailersMutedByDefault } = useAppStore();
+  const { openPreview, openPlayer, addToMyList, removeFromMyList, isInMyList, toggleLike, isLiked, trailersEnabled, trailersMutedByDefault } = useAppStore();
 
   const [isHovered, setIsHovered] = useState(false);
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
@@ -70,7 +70,7 @@ export default function MovieCard({ media, isFirst = false, isLast = false }: Mo
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/watch/${media.media_type}/${media.id}`);
+    openPlayer(media);
   };
 
   const originX = isFirst ? 0 : isLast ? 1 : 0.5;

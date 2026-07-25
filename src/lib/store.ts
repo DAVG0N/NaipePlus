@@ -11,6 +11,14 @@ interface AppState {
   openPreview: (media: MediaItem) => void;
   closePreview: () => void;
 
+  // Global Video Player Modal
+  isPlayerOpen: boolean;
+  playerMedia: MediaItem | null;
+  playerSeason: number;
+  playerEpisode: number;
+  openPlayer: (media: MediaItem, season?: number, episode?: number) => void;
+  closePlayer: () => void;
+
   // Active Streaming Provider
   selectedProvider: StreamProvider;
   setProvider: (provider: StreamProvider) => void;
@@ -26,7 +34,6 @@ interface AppState {
   toggleLike: (media: MediaItem) => void;
   isLiked: (id: string) => boolean;
 
-  // Watch History
   // Watch History
   watchHistory: WatchHistoryItem[];
   addToWatchHistory: (media: MediaItem, season?: number, episode?: number) => void;
@@ -57,6 +64,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedMedia: null,
   openPreview: (media) => set({ isPreviewOpen: true, selectedMedia: media }),
   closePreview: () => set({ isPreviewOpen: false }),
+
+  isPlayerOpen: false,
+  playerMedia: null,
+  playerSeason: 1,
+  playerEpisode: 1,
+  openPlayer: (media, season = 1, episode = 1) => {
+    get().addToWatchHistory(media, media.media_type === 'tv' ? season : undefined, media.media_type === 'tv' ? episode : undefined);
+    set({ isPlayerOpen: true, playerMedia: media, playerSeason: season, playerEpisode: episode });
+  },
+  closePlayer: () => set({ isPlayerOpen: false, playerMedia: null }),
 
   selectedProvider: PROVIDERS[0],
   setProvider: (provider) => set({ selectedProvider: provider }),
