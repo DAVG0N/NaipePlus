@@ -4,10 +4,9 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Plus, Check, Server, Star, Film, Sparkles, ThumbsUp, Volume2, VolumeX } from 'lucide-react';
-import { getMediaTrailerKey } from '@/lib/tmdb';
+import { X, Play, Plus, Check, Star, Film, Sparkles, ThumbsUp, Volume2, VolumeX } from 'lucide-react';
+import { getMediaTrailerKey, getTVSeasonDetails, getMediaDetails, EpisodeItem, MediaItem } from '@/lib/tmdb';
 import { useAppStore } from '@/lib/store';
-import { PROVIDERS } from '@/lib/providers';
 
 function formatReleaseDate(dateStr?: string, isTV: boolean = false): string {
   if (!dateStr) return '';
@@ -36,8 +35,6 @@ export default function PreviewModal() {
     selectedMedia,
     closePreview,
     openPlayer,
-    selectedProvider,
-    setProvider,
     addToMyList,
     removeFromMyList,
     isInMyList,
@@ -52,11 +49,46 @@ export default function PreviewModal() {
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(trailersMutedByDefault);
+  const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
+  const [loadingEpisodes, setLoadingEpisodes] = useState(false);
+  const [fullMediaDetails, setFullMediaDetails] = useState<MediaItem | null>(null);
 
   useEffect(() => {
-    if (selectedMedia && trailersEnabled) {
+    if (selectedMedia) {
+      setFullMediaDetails(selectedMedia);
+      setSelectedSeason(1);
+      setSelectedEpisode(1);
+      getMediaDetails(selectedMedia.id, selectedMedia.media_type).then((details) => {
+        if (details) {
+          setFullMediaDetails(details);
+        }
+      });
+    } else {
+      setFullMediaDetails(null);
+    }
+  }, [selectedMedia]);
+
+  const activeMedia = fullMediaDetails || selectedMedia;
+
+  useEffect(() => {
+    if (activeMedia && activeMedia.media_type === 'tv') {
+      setLoadingEpisodes(true);
+      getTVSeasonDetails(activeMedia.tmdbId || activeMedia.id, selectedSeason)
+        .then((data) => {
+          setEpisodes(data);
+        })
+        .finally(() => {
+          setLoadingEpisodes(false);
+        });
+    } else {
+      setEpisodes([]);
+    }
+  }, [activeMedia, selectedSeason]);
+
+  useEffect(() => {
+    if (activeMedia && trailersEnabled) {
       setIsMuted(trailersMutedByDefault);
-      getMediaTrailerKey(selectedMedia.tmdbId || selectedMedia.id, selectedMedia.media_type).then((key) => {
+      getMediaTrailerKey(activeMedia.tmdbId || activeMedia.id, activeMedia.media_type).then((key) => {
         setTrailerKey(key);
       });
 
@@ -69,7 +101,7 @@ export default function PreviewModal() {
         setIsPlayingTrailer(false);
       };
     }
-  }, [selectedMedia, trailersEnabled]);
+  }, [activeMedia, trailersEnabled]);
 
   // Prevent background page scrolling while modal is open
   useEffect(() => {
@@ -93,21 +125,21 @@ export default function PreviewModal() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPreviewOpen, closePreview]);
 
-  if (!isPreviewOpen || !selectedMedia) return null;
+  if (!isPreviewOpen || !activeMedia) return null;
 
-  const inList = isInMyList(selectedMedia.id);
-  const isTV = selectedMedia.media_type === 'tv';
+  const inList = isInMyList(activeMedia.id);
+  const isTV = activeMedia.media_type === 'tv';
   const rawDate = isTV
-    ? selectedMedia.first_air_date || selectedMedia.release_date
-    : selectedMedia.release_date || selectedMedia.first_air_date;
+    ? activeMedia.first_air_date || activeMedia.release_date
+    : activeMedia.release_date || activeMedia.first_air_date;
   const formattedDate = formatReleaseDate(rawDate, isTV) || '2024';
 
   const handleStartWatch = () => {
     closePreview();
-    if (selectedMedia.media_type === 'tv') {
-      openPlayer(selectedMedia, selectedSeason, selectedEpisode);
+    if (activeMedia.media_type === 'tv') {
+      openPlayer(activeMedia, selectedSeason, selectedEpisode);
     } else {
-      openPlayer(selectedMedia);
+      openPlayer(activeMedia);
     }
   };
 
@@ -143,15 +175,15 @@ export default function PreviewModal() {
                 <iframe
                   key={isMuted ? 'muted' : 'unmuted'}
                   src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&loop=1&playlist=${trailerKey}&playsinline=1`}
-                  title={selectedMedia.title}
+                  title={activeMedia.title}
                   className="w-[145%] h-[145%] max-w-none object-cover pointer-events-none border-none shadow-none"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 />
               </div>
             ) : (
               <Image
-                src={selectedMedia.backdrop_path || selectedMedia.poster_path}
-                alt={selectedMedia.title}
+                src={activeMedia.backdrop_path || activeMedia.poster_path}
+                alt={activeMedia.title}
                 fill
                 priority
                 className="object-cover"
@@ -173,7 +205,7 @@ export default function PreviewModal() {
             {/* Hero Overlaid Info */}
             <div className="absolute bottom-6 left-6 right-6 space-y-4">
               <h2 className="text-3xl sm:text-5xl font-black text-white drop-shadow-md">
-                {selectedMedia.title}
+                {activeMedia.title}
               </h2>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -186,7 +218,7 @@ export default function PreviewModal() {
                 </button>
 
                 <button
-                  onClick={() => (inList ? removeFromMyList(selectedMedia.id) : addToMyList(selectedMedia))}
+                  onClick={() => (inList ? removeFromMyList(activeMedia.id) : addToMyList(activeMedia))}
                   className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-400 bg-black/50 text-white transition hover:border-white active:scale-95"
                   title={inList ? 'Remover da minha lista' : 'Adicionar à minha lista'}
                 >
@@ -194,15 +226,15 @@ export default function PreviewModal() {
                 </button>
 
                 <button
-                  onClick={() => toggleLike(selectedMedia)}
+                  onClick={() => toggleLike(activeMedia)}
                   className={`flex h-10 w-10 items-center justify-center rounded-full border transition active:scale-95 ${
-                    isLiked(selectedMedia.id)
+                    isLiked(activeMedia.id)
                       ? 'border-netflix-red bg-netflix-red/20 text-netflix-red'
                       : 'border-gray-400 bg-black/50 text-white hover:border-white'
                   }`}
-                  title={isLiked(selectedMedia.id) ? 'Remover dos gostados' : 'Gostar'}
+                  title={isLiked(activeMedia.id) ? 'Remover dos gostados' : 'Gostar'}
                 >
-                  <ThumbsUp className={`h-4 w-4 ${isLiked(selectedMedia.id) ? 'fill-netflix-red text-netflix-red' : ''}`} />
+                  <ThumbsUp className={`h-4 w-4 ${isLiked(activeMedia.id) ? 'fill-netflix-red text-netflix-red' : ''}`} />
                 </button>
               </div>
             </div>
@@ -210,38 +242,49 @@ export default function PreviewModal() {
 
           {/* Modal Detailed Body */}
           <div className="p-6 sm:p-8 space-y-8">
-            {/* Grid Layout: Left Column Details / Right Column Cast & Server Select */}
+            {/* Grid Layout: Left Column Details / Right Column Cast & Episode Selector */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Main Content */}
               <div className="md:col-span-2 space-y-4">
                 <div className="flex items-center space-x-3 text-sm font-semibold">
-                  <span className="text-green-400 font-bold">{selectedMedia.matchPercentage}% relevante</span>
+                  <span className="text-green-400 font-bold">{activeMedia.matchPercentage}% relevante</span>
                   <span className="text-gray-300 font-medium">{formattedDate}</span>
-                  <span className="border border-gray-600 rounded px-1.5 py-0.2 text-gray-300 text-xs">{selectedMedia.ageRating}</span>
-                  <span className="border border-gray-600 rounded px-1.5 py-0.2 text-gray-300 text-xs">{selectedMedia.resolution}</span>
+                  <span className="border border-gray-600 rounded px-1.5 py-0.2 text-gray-300 text-xs">{activeMedia.ageRating}</span>
+                  <span className="border border-gray-600 rounded px-1.5 py-0.2 text-gray-300 text-xs">{activeMedia.resolution}</span>
                   <div className="flex items-center text-yellow-400 text-xs">
                     <Star className="h-3.5 w-3.5 fill-yellow-400 mr-1" />
-                    {selectedMedia.vote_average}
+                    {activeMedia.vote_average}
                   </div>
                 </div>
 
                 <p className="text-sm text-gray-300 leading-relaxed">
-                  {selectedMedia.overview}
+                  {activeMedia.overview}
                 </p>
+              </div>
+
+              {/* Sidebar Info & Episode Selector */}
+              <div className="space-y-6 border-t md:border-t-0 md:border-l border-gray-800 pt-6 md:pt-0 md:pl-6">
+                {/* Cast */}
+                {activeMedia.cast && activeMedia.cast.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-400 font-semibold">Elenco:</p>
+                    <p className="text-xs text-gray-200">{activeMedia.cast.join(', ')}</p>
+                  </div>
+                )}
 
                 {/* TV Episode Browser */}
-                {selectedMedia.media_type === 'tv' && (
-                  <div className="pt-4 space-y-3 border-t border-gray-800">
+                {activeMedia.media_type === 'tv' && (
+                  <div className="space-y-3 pt-4 border-t border-gray-800">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-bold text-white flex items-center gap-2">
-                        <Film className="h-4 w-4 text-netflix-red" /> Episódios
+                      <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <Film className="h-3.5 w-3.5 text-netflix-red" /> Episódios:
                       </h3>
                       <select
                         value={selectedSeason}
                         onChange={(e) => setSelectedSeason(Number(e.target.value))}
-                        className="bg-black/60 border border-gray-700 text-white text-xs rounded px-3 py-1.5 focus:outline-none focus:border-netflix-red"
+                        className="bg-black/60 border border-gray-700 text-white text-xs rounded px-2.5 py-1 focus:outline-none focus:border-netflix-red"
                       >
-                        {Array.from({ length: selectedMedia.number_of_seasons || 1 }, (_, i) => (
+                        {Array.from({ length: activeMedia.number_of_seasons || 1 }, (_, i) => (
                           <option key={i + 1} value={i + 1}>
                             Temporada {i + 1}
                           </option>
@@ -249,76 +292,70 @@ export default function PreviewModal() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1 no-scrollbar">
-                      {Array.from({ length: selectedMedia.number_of_episodes || 10 }, (_, i) => {
-                        const epNum = i + 1;
-                        return (
-                          <div
-                            key={epNum}
-                            onClick={() => {
-                              setSelectedEpisode(epNum);
-                              closePreview();
-                              openPlayer(selectedMedia, selectedSeason, epNum);
-                            }}
-                            className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition border ${
-                              selectedEpisode === epNum
-                                ? 'bg-netflix-card border-netflix-red'
-                                : 'bg-black/30 border-gray-800 hover:bg-gray-800'
-                            }`}
-                          >
-                            <div className="flex-shrink-0 h-10 w-16 bg-gray-800 rounded relative flex items-center justify-center">
-                              <Play className="h-4 w-4 text-white" />
-                            </div>
-                            <div className="truncate">
-                              <p className="text-xs font-bold text-white truncate">
-                                Ep. {epNum} - Episódio {epNum}
-                              </p>
-                              <p className="text-[10px] text-gray-400">45m</p>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 no-scrollbar">
+                      {loadingEpisodes ? (
+                        <div className="flex items-center justify-center py-6">
+                          <div className="h-5 w-5 rounded-full border-2 border-netflix-red border-t-transparent animate-spin" />
+                        </div>
+                      ) : episodes.length > 0 ? (
+                        episodes.map((ep) => {
+                          const epNum = ep.episode_number;
+                          const isSelectedEp = selectedEpisode === epNum;
+                          return (
+                            <button
+                              key={ep.id || epNum}
+                              onClick={() => {
+                                setSelectedEpisode(epNum);
+                                closePreview();
+                                openPlayer(activeMedia, selectedSeason, epNum);
+                              }}
+                              className={`w-full flex items-center justify-between p-2 rounded text-xs transition border text-left ${
+                                isSelectedEp
+                                  ? 'bg-netflix-red/20 border-netflix-red text-white font-bold'
+                                  : 'bg-black/40 border-gray-800 text-gray-300 hover:text-white hover:border-gray-700'
+                              }`}
+                              title={ep.name}
+                            >
+                              <div className="flex items-center space-x-2 truncate min-w-0 pr-1">
+                                <Play className={`h-3.5 w-3.5 shrink-0 ${isSelectedEp ? 'text-netflix-red fill-netflix-red' : 'text-gray-400'}`} />
+                                <span className="truncate">Ep. {epNum} - {ep.name}</span>
+                              </div>
+                              <span className="text-[10px] text-gray-500 font-mono shrink-0 ml-1">
+                                {ep.runtime ? `${ep.runtime}m` : '45m'}
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        Array.from({ length: activeMedia.number_of_episodes || 10 }, (_, i) => {
+                          const epNum = i + 1;
+                          const isSelectedEp = selectedEpisode === epNum;
+                          return (
+                            <button
+                              key={epNum}
+                              onClick={() => {
+                                setSelectedEpisode(epNum);
+                                closePreview();
+                                openPlayer(activeMedia, selectedSeason, epNum);
+                              }}
+                              className={`w-full flex items-center justify-between p-2 rounded text-xs transition border text-left ${
+                                isSelectedEp
+                                  ? 'bg-netflix-red/20 border-netflix-red text-white font-bold'
+                                  : 'bg-black/40 border-gray-800 text-gray-300 hover:text-white hover:border-gray-700'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2 truncate">
+                                <Play className={`h-3.5 w-3.5 shrink-0 ${isSelectedEp ? 'text-netflix-red fill-netflix-red' : 'text-gray-400'}`} />
+                                <span className="truncate">Ep. {epNum} - Episódio {epNum}</span>
+                              </div>
+                              <span className="text-[10px] text-gray-500 font-mono shrink-0 ml-1">45m</span>
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Sidebar Info & Provider Switcher */}
-              <div className="space-y-6 border-t md:border-t-0 md:border-l border-gray-800 pt-6 md:pt-0 md:pl-6">
-                {/* Cast */}
-                {selectedMedia.cast && selectedMedia.cast.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-400 font-semibold">Elenco:</p>
-                    <p className="text-xs text-gray-200">{selectedMedia.cast.join(', ')}</p>
-                  </div>
-                )}
-
-                {/* Stream Provider Switcher */}
-                <div className="space-y-2 pt-2">
-                  <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Server className="h-3.5 w-3.5 text-netflix-red" /> Servidor de Reprodução:
-                  </p>
-                  <div className="space-y-1.5">
-                    {PROVIDERS.map((provider) => (
-                      <button
-                        key={provider.id}
-                        onClick={() => setProvider(provider)}
-                        className={`w-full flex items-center justify-between p-2 rounded text-xs transition border ${
-                          selectedProvider.id === provider.id
-                            ? 'bg-netflix-red/20 border-netflix-red text-white font-bold'
-                            : 'bg-black/40 border-gray-800 text-gray-400 hover:text-white hover:border-gray-700'
-                        }`}
-                      >
-                        <span>{provider.name}</span>
-                        {provider.badge && (
-                          <span className="text-[9px] bg-netflix-red px-1.5 py-0.5 rounded text-white font-bold">
-                            {provider.badge}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
           </div>

@@ -290,6 +290,8 @@ function formatTMDBItem(item: any): MediaItem {
     release_date: item.release_date,
     first_air_date: item.first_air_date,
     genre_ids: item.genre_ids || item.genres?.map((g: any) => g.id) || [],
+    number_of_seasons: item.number_of_seasons,
+    number_of_episodes: item.number_of_episodes,
     matchPercentage: Math.min(99, Math.max(75, Math.round((item.vote_average || 8.0) * 10 + 15))),
     ageRating: '16+',
     resolution: '4K Ultra HD',
@@ -310,4 +312,36 @@ export async function getMediaTrailerKey(id: string | number, mediaType: 'movie'
     }
   }
   return null;
+}
+
+export interface EpisodeItem {
+  id: number;
+  episode_number: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  still_path: string | null;
+  runtime?: number;
+  air_date?: string;
+}
+
+export async function getTVSeasonDetails(
+  tvId: string | number,
+  seasonNumber: number = 1
+): Promise<EpisodeItem[]> {
+  if (!tvId) return [];
+  const data = await fetchFromTMDB(`/tv/${tvId}/season/${seasonNumber}`);
+  if (data?.episodes?.length) {
+    return data.episodes.map((ep: any) => ({
+      id: ep.id,
+      episode_number: ep.episode_number,
+      season_number: ep.season_number || seasonNumber,
+      name: ep.name || `Episódio ${ep.episode_number}`,
+      overview: ep.overview || '',
+      still_path: ep.still_path ? getImageUrl(ep.still_path, 'w500') : null,
+      runtime: ep.runtime || ep.duration || 45,
+      air_date: ep.air_date,
+    }));
+  }
+  return [];
 }
