@@ -6,6 +6,7 @@ import PreviewModal from '@/components/PreviewModal';
 import VideoPlayer from '@/components/VideoPlayer';
 import NotificationMonitor from '@/components/NotificationMonitor';
 import AuthListener from '@/components/AuthListener';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'NAIPE+ | Streaming de Filmes & Séries',
@@ -34,6 +35,7 @@ export default function RootLayout({
           <main className="relative min-h-screen">{children}</main>
           <PreviewModal />
           <VideoPlayer />
+          <Analytics />
         </AppProviders>
       </body>
     </html>
