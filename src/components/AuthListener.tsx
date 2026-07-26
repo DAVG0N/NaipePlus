@@ -4,13 +4,22 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAppStore } from '@/lib/store';
+import { fetchUserDataFromSupabase } from '@/lib/supabase/syncService';
 
 export default function AuthListener() {
   const router = useRouter();
   const updateUserProfile = useAppStore((state) => state.updateUserProfile);
+  const hydrateFromCloud = useAppStore((state) => state.hydrateFromCloud);
 
   useEffect(() => {
     const supabase = createClient();
+
+    const loadCloudData = async () => {
+      const cloudData = await fetchUserDataFromSupabase();
+      if (cloudData) {
+        hydrateFromCloud(cloudData);
+      }
+    };
 
     // 1. Fetch current user session on mount
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -23,6 +32,9 @@ export default function AuthListener() {
           userEmail: user.email || '',
           userAvatarUrl: avatar,
         });
+
+        // Load data from Supabase into Zustand / localStorage
+        loadCloudData();
       }
     });
 
@@ -39,6 +51,8 @@ export default function AuthListener() {
           userEmail: session.user.email || '',
           userAvatarUrl: avatar,
         });
+
+        loadCloudData();
       } else if (event === 'SIGNED_OUT') {
         document.cookie = 'naipe_session=; path=/; max-age=0';
         router.push('/login');
@@ -48,7 +62,8 @@ export default function AuthListener() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [updateUserProfile, router]);
+  }, [updateUserProfile, hydrateFromCloud, router]);
 
   return null;
 }
+

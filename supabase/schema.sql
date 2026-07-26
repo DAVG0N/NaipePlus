@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.watch_history (
   episode INTEGER,
   progress_seconds INTEGER DEFAULT 0 NOT NULL,
   duration_seconds INTEGER DEFAULT 0 NOT NULL,
+  media_data JSONB,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   UNIQUE(user_id, media_id, season, episode)
 );
@@ -84,6 +85,7 @@ CREATE TABLE IF NOT EXISTS public.my_list (
   poster_path TEXT,
   backdrop_path TEXT,
   vote_average NUMERIC(3, 1),
+  media_data JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   UNIQUE(user_id, media_id)
 );
@@ -102,3 +104,35 @@ CREATE POLICY "Users can add to their saved list."
 CREATE POLICY "Users can remove from their saved list."
   ON public.my_list FOR DELETE
   USING (auth.uid() = user_id);
+
+
+-- 4. Liked List Table
+CREATE TABLE IF NOT EXISTS public.liked_list (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  media_id TEXT NOT NULL,
+  media_type TEXT NOT NULL CHECK (media_type IN ('movie', 'tv')),
+  title TEXT NOT NULL,
+  poster_path TEXT,
+  backdrop_path TEXT,
+  vote_average NUMERIC(3, 1),
+  media_data JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  UNIQUE(user_id, media_id)
+);
+
+-- Enable RLS on liked_list
+ALTER TABLE public.liked_list ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own liked list."
+  ON public.liked_list FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can add to their liked list."
+  ON public.liked_list FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can remove from their liked list."
+  ON public.liked_list FOR DELETE
+  USING (auth.uid() = user_id);
+
